@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBU Digital Register - Lecturer Dashboard</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: #0a0f1e;
+            min-height: 100vh;
+            padding: 24px 16px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .card {
+            background: #141b2b;
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid #253044;
+            margin-bottom: 24px;
+        }
+        h1 {
+            color: #f0f3fa;
+            font-size: 1.8rem;
+        }
+        h2 {
+            color: #cbd5ff;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #2d6aef;
+            padding-left: 14px;
+        }
+        h3 {
+            color: #f0f3fa;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .status-on {
+            background: #1f6e43;
+            color: #c0f0d0;
+        }
+        .status-off {
+            background: #8b3a3a;
+            color: #ffcfcf;
+        }
+        .status-warning {
+            background: #c4a137;
+            color: #1e1a0a;
+        }
+        .test-mode-toggle {
+            background: #1e2a3e;
+            border-radius: 40px;
+            padding: 6px 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: white;
+        }
+        .test-mode-toggle input {
+            width: 18px;
+            margin: 0;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            color: #94a3d8;
+            margin-bottom: 0.4rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        label .required {
+            color: #ff6b6b;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px 14px;
+            background: #0c1120;
+            border: 1px solid #2a3448;
+            border-radius: 12px;
+            color: white;
+            font-size: 0.9rem;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #2d6aef;
+        }
+        button {
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-size: 0.9rem;
+        }
+        .btn-primary {
+            background: #2d6aef;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1b55cf;
+        }
+        .btn-danger {
+            background: #a03232;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #b14242;
+        }
+        .btn-secondary {
+            background: #1e2a44;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #2a3a5a;
+        }
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 0.85rem;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .filter-bar select, .filter-bar button {
+            width: auto;
+            min-width: 160px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid #253044;
+            color: #e2e8f0;
+        }
+        th {
+            color: #94a3d8;
+        }
+        .session-item {
+            background: #0f1622;
+            padding: 12px;
+            border-radius: 16px;
+            margin-bottom: 10px;
+        }
+        .info-badge {
+            background: #2d6aef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+            display: inline-block;
+        }
+        .location-badge {
+            background: #1f6e43;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+            display: inline-block;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #94a3d8;
+        }
+        .current-location {
+            background: #0c1120;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 8px;
+            font-family: monospace;
+        }
+        @media (max-width: 768px) {
+            .filter-bar select, .filter-bar button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="flex-between">
+                <h1>👨‍🏫 Lecturer Dashboard</h1>
+                <div class="test-mode-toggle">
+                    <span>📍 Test Mode (simulate location)</span>
+                    <input type="checkbox" id="testModeToggle">
+                </div>
+                <button id="logoutBtn" class="btn-danger btn-sm">Logout</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="flex-between">
+                <div>
+                    <p><strong>👤 Name:</strong> <span id="lecturerName"></span></p>
+                    <p><strong>🏛️ School:</strong> <span id="lecturerSchool"></span></p>
+                    <p><strong>📚 Course:</strong> <span id="lecturerCourse"></span></p>
+                </div>
+                <div>
+                    <span id="locationStatus" class="status-badge status-off">📍 Getting location...</span>
+                </div>
+            </div>
+            <button id="refreshLocationBtn" class="btn-secondary btn-sm" style="margin-top: 12px;">⟳ Refresh My Location</button>
+            <div id="currentLocationDisplay" class="current-location">No location captured yet</div>
+        </div>
+
+        <div class="card">
+            <h2>➕ Create Attendance Session</h2>
+            <div id="locationWarning" style="background: #2a1e2e; border-left: 4px solid #ef7e2d; padding: 12px; border-radius: 12px; margin-bottom: 16px; display: none;">
+                ⚠️ Getting your current location... This will be saved with the session so students can verify they are in the same room.
+            </div>
+            <form id="createSessionForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>School <span class="required">*</span></label>
+                        <input type="text" id="sessionSchool" readonly style="background:#1a2340;">
+                    </div>
+                    <div class="form-group">
+                        <label>Program of Study <span class="required">*</span></label>
+                        <select id="sessionProgram" required>
+                            <option value="">Select Program</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Course <span class="required">*</span></label>
+                        <select id="sessionCourse" required disabled>
+                            <option value="">First select a program</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Room/Building Name</label>
+                        <input id="sessionLocationName" placeholder="e.g., Room 205, Lab B" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="sessionDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="sessionStart" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="sessionEnd" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" style="margin-top: 12px;" id="createSessionBtn">
+                    📅 Create Session with My Current Location
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>📋 My Created Sessions</h2>
+            <div id="sessionsList">
+                <div class="empty-state">Loading sessions...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="flex-between">
+                <h2>👥 Student Roster</h2>
+                <button id="exportRosterBtn" class="btn-primary btn-sm">📄 Export Roster PDF</button>
+            </div>
+            <div class="filter-bar">
+                <select id="programFilter">
+                    <option value="all">All Programs</option>
+                </select>
+                <select id="courseFilter">
+                    <option value="all">All Courses</option>
+                </select>
+                <select id="yearFilter">
+                    <option value="all">All Years</option>
+                    <option value="Year 1">Year 1</option>
+                    <option value="Year 2">Year 2</option>
+                    <option value="Year 3">Year 3</option>
+                    <option value="Year 4">Year 4</option>
+                    <option value="Year 5">Year 5</option>
+                </select>
+                <button id="refreshRosterBtn" class="btn-secondary btn-sm">⟳ Refresh</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table id="rosterTable">
+                    <thead>
+                        <tr><th>Name</th><th>SIN</th><th>Program</th><th>Course</th><th>Year</th><th>Today's Status</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" class="empty-state">Loading students......</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="flex-between">
+                <h2>📊 Attendance Reports</h2>
+                <button id="exportReportBtn" class="btn-primary btn-sm">📑 Export Report PDF</button>
+            </div>
+            <div class="filter-bar">
+                <select id="reportProgramFilter">
+                    <option value="all">All Programs</option>
+                </select>
+                <select id="reportCourseFilter">
+                    <option value="all">All Courses</option>
+                </select>
+                <select id="reportPeriod">
+                    <option value="day">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // NEW FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyBNpjy5UDXo8affem8rJnzLlqZKgjmDQpM",
+            authDomain: "attendence-2bf1e.firebaseapp.com",
+            projectId: "attendence-2bf1e",
+            storageBucket: "attendence-2bf1e.firebasestorage.app",
+            messagingSenderId: "713605798743",
+            appId: "1:713605798743:web:98040dcc16ae69236ebc12",
+            measurementId: "G-B5WCTL378P"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // CBU Data Structure
+        const cbuData = {
+            schools: [
+                {
+                    name: "School of Natural Resources",
+                    programs: [
+                        { name: "Computer Science", courses: ["Web Development", "Database Systems", "Data Structures", "Software Engineering", "Network Security", "Mobile App Development", "Artificial Intelligence"] },
+                        { name: "Information Technology", courses: ["IT Fundamentals", "System Administration", "Cloud Computing", "Cybersecurity", "Network Management", "Database Administration"] },
+                        { name: "Information Systems", courses: ["Business Intelligence", "Enterprise Systems", "System Analysis", "IT Project Management", "Data Analytics"] }
+                    ]
+                },
+                {
+                    name: "School of Business",
+                    programs: [
+                        { name: "Business Administration", courses: ["Principles of Management", "Marketing", "Organizational Behavior", "Strategic Management", "Business Ethics", "Entrepreneurship"] },
+                        { name: "Accounting", courses: ["Financial Accounting", "Management Accounting", "Taxation", "Auditing", "Corporate Finance", "Accounting Information Systems"] },
+                        { name: "Economics", courses: ["Microeconomics", "Macroeconomics", "Econometrics", "Development Economics", "International Trade", "Public Finance"] }
+                    ]
+                },
+                {
+                    name: "School of Engineering",
+                    programs: [
+                        { name: "Electrical Engineering", courses: ["Circuit Theory", "Electronics", "Power Systems", "Control Systems", "Digital Signal Processing", "Renewable Energy"] },
+                        { name: "Mechanical Engineering", courses: ["Thermodynamics", "Fluid Mechanics", "Machine Design", "Manufacturing Processes", "CAD/CAM", "Automotive Engineering"] },
+                        { name: "Civil Engineering", courses: ["Structural Analysis", "Geotechnical Engineering", "Transportation Engineering", "Water Resources", "Construction Management"] }
+                    ]
+                },
+                {
+                    name: "School of Medicine",
+                    programs: [
+                        { name: "Medicine and Surgery", courses: ["Anatomy", "Physiology", "Pathology", "Pharmacology", "Clinical Medicine", "Surgery", "Pediatrics", "Obstetrics"] },
+                        { name: "Nursing", courses: ["Fundamentals of Nursing", "Medical-Surgical Nursing", "Community Health", "Mental Health Nursing", "Pediatric Nursing"] }
+                    ]
+                },
+                {
+                    name: "School of Education",
+                    programs: [
+                        { name: "Mathematics Education", courses: ["Algebra", "Calculus", "Geometry", "Statistics", "Mathematics Teaching Methods", "Educational Psychology"] },
+                        { name: "Science Education", courses: ["Biology Teaching Methods", "Chemistry Teaching Methods", "Physics Teaching Methods", "Curriculum Design", "Assessment Techniques"] }
+                    ]
+                }
+            ]
+        };
+
+        let userData = null;
+        let testMode = false;
+        let currentLecturerLocation = null;
+
+        function getTodayStr() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        // Get current location
+        function getCurrentLocation() {
+            return new Promise((resolve) => {
+                if (testMode) {
+                    // Simulate a location on campus for test mode
+                    const simulatedLocation = { lat: -12.9770, lng: 28.6520 };
+                    currentLecturerLocation = simulatedLocation;
+                    document.getElementById('locationStatus').innerHTML = '<span class="status-badge status-warning">🧪 TEST MODE</span>';
+                    document.getElementById('currentLocationDisplay').innerHTML = `🧪 Test Mode: Simulated at (${simulatedLocation.lat}, ${simulatedLocation.lng})`;
+                    resolve(simulatedLocation);
+                    return;
+                }
+                
+                if (!navigator.geolocation) {
+                    document.getElementById('locationStatus').innerHTML = '<span class="status-badge status-off">❌ GPS Not Supported</span>';
+                    resolve(null);
+                    return;
+                }
+                
+                document.getElementById('locationStatus').innerHTML = '<span class="status-badge status-warning">📍 Getting location...</span>';
+                
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        currentLecturerLocation = location;
+                        document.getElementById('locationStatus').innerHTML = '<span class="status-badge status-on">✅ Location Ready</span>';
+                        document.getElementById('currentLocationDisplay').innerHTML = `📍 Current Location: ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`;
+                        resolve(location);
+                    },
+                    (error) => {
+                        let errorMsg = "Location unavailable";
+                        if (error.code === 1) errorMsg = "Permission denied. Allow location access.";
+                        if (error.code === 2) errorMsg = "Location unavailable. Try again.";
+                        if (error.code === 3) errorMsg = "Location timeout. Check GPS.";
+                        document.getElementById('locationStatus').innerHTML = `<span class="status-badge status-off">❌ ${errorMsg}</span>`;
+                        resolve(null);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            });
+        }
+
+        // Populate program dropdown
+        function populatePrograms() {
+            const school = userData.school;
+            const schoolData = cbuData.schools.find(s => s.name === school);
+            const programSelect = document.getElementById('sessionProgram');
+            
+            if (schoolData && schoolData.programs) {
+                programSelect.innerHTML = '<option value="">Select Program</option>';
+                schoolData.programs.forEach(program => {
+                    const option = document.createElement('option');
+                    option.value = program.name;
+                    option.textContent = program.name;
+                    programSelect.appendChild(option);
+                });
+                programSelect.disabled = false;
+            }
+        }
+
+        function updateCourses() {
+            const school = userData.school;
+            const program = document.getElementById('sessionProgram').value;
+            const courseSelect = document.getElementById('sessionCourse');
+            
+            if (!program) {
+                courseSelect.innerHTML = '<option value="">First select a program</option>';
+                courseSelect.disabled = true;
+                return;
+            }
+            
+            const schoolData = cbuData.schools.find(s => s.name === school);
+            const programData = schoolData.programs.find(p => p.name === program);
+            
+            if (programData && programData.courses) {
+                courseSelect.innerHTML = '<option value="">Select Course</option>';
+                programData.courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course;
+                    option.textContent = course;
+                    courseSelect.appendChild(option);
+                });
+                courseSelect.disabled = false;
+            }
+        }
+
+        // Render sessions
+        async function renderSessions() {
+            const sessionsSnapshot = await db.collection('sessions')
+                .where('lecturerEmail', '==', userData.email)
+                .get();
+            
+            const container = document.getElementById('sessionsList');
+            
+            if (sessionsSnapshot.empty) {
+                container.innerHTML = '<div class="empty-state">📭 No sessions created yet.</div>';
+                return;
+            }
+            
+            let html = '';
+            for (const doc of sessionsSnapshot.docs) {
+                const s = doc.data();
+                const attendanceSnapshot = await db.collection('attendance')
+                    .where('sessionId', '==', doc.id)
+                    .get();
+                const markedCount = attendanceSnapshot.size;
+                
+                html += `<div class="session-item">
+                            <strong>📚 ${s.course}</strong>
+                            <span class="info-badge">${s.program}</span><br>
+                            <span>📍 ${s.locationName}</span><br>
+                            <small>📅 ${s.date} | 🕐 ${s.startTime} - ${s.endTime}</small><br>
+                            <small>📍 Lecturer Location: ${s.lecturerLat?.toFixed(6) || 'N/A'}, ${s.lecturerLng?.toFixed(6) || 'N/A'}</small><br>
+                            <span class="status-badge status-on">✅ ${markedCount} student(s) marked attendance</span>
+                        </div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        // Populate filters
+        async function populateFilters() {
+            const usersSnapshot = await db.collection('users')
+                .where('role', '==', 'student')
+                .where('school', '==', userData.school)
+                .get();
+            
+            const programs = new Set();
+            const courses = new Set();
+            
+            usersSnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.program) programs.add(data.program);
+                if (data.course) courses.add(data.course);
+            });
+            
+            const programFilter = document.getElementById('programFilter');
+            const courseFilter = document.getElementById('courseFilter');
+            const reportProgramFilter = document.getElementById('reportProgramFilter');
+            const reportCourseFilter = document.getElementById('reportCourseFilter');
+            
+            [programFilter, reportProgramFilter].forEach(select => {
+                if (select) {
+                    select.innerHTML = '<option value="all">All Programs</option>';
+                    Array.from(programs).sort().forEach(p => {
+                        select.innerHTML += `<option value="${p}">${p}</option>`;
+                    });
+                }
+            });
+            
+            [courseFilter, reportCourseFilter].forEach(select => {
+                if (select) {
+                    select.innerHTML = '<option value="all">All Courses</option>';
+                    Array.from(courses).sort().forEach(c => {
+                        select.innerHTML += `<option value="${c}">${c}</option>`;
+                    });
+                }
+            });
+        }
+
+        // Render roster
+        async function renderRoster() {
+            const usersSnapshot = await db.collection('users')
+                .where('role', '==', 'student')
+                .where('school', '==', userData.school)
+                .get();
+            
+            let students = [];
+            usersSnapshot.forEach(doc => {
+                students.push(doc.data());
+            });
+            
+            const programFilter = document.getElementById('programFilter').value;
+            const courseFilter = document.getElementById('courseFilter').value;
+            const yearFilter = document.getElementById('yearFilter').value;
+            
+            if (programFilter !== 'all') students = students.filter(s => s.program === programFilter);
+            if (courseFilter !== 'all') students = students.filter(s => s.course === courseFilter);
+            if (yearFilter !== 'all') students = students.filter(s => s.year === yearFilter);
+            
+            const today = getTodayStr();
+            const attendanceSnapshot = await db.collection('attendance')
+                .where('date', '==', today)
+                .where('type', '==', 'daily')
+                .get();
+            
+            const dailyAttendance = {};
+            attendanceSnapshot.forEach(doc => {
+                const data = doc.data();
+                dailyAttendance[data.studentEmail] = data.status;
+            });
+            
+            const tbody = document.querySelector('#rosterTable tbody');
+            tbody.innerHTML = '';
+            
+            if (students.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No students found</td></tr>';
+                return;
+            }
+            
+            students.forEach(stud => {
+                const status = dailyAttendance[stud.email] || 'Not Marked';
+                const statusClass = status === 'Present' ? 'status-on' : 'status-off';
+                const row = tbody.insertRow();
+                row.insertCell(0).innerText = stud.name;
+                row.insertCell(1).innerText = stud.sin || '-';
+                row.insertCell(2).innerText = stud.program || '-';
+                row.insertCell(3).innerText = stud.course || '-';
+                row.insertCell(4).innerText = stud.year || '-';
+                row.insertCell(5).innerHTML = `<span class="status-badge ${statusClass}">${status}</span>`;
+            });
+        }
+
+        // Export functions
+        async function exportRoster() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const usersSnapshot = await db.collection('users').where('role', '==', 'student').where('school', '==', userData.school).get();
+            let students = [];
+            usersSnapshot.forEach(doc => students.push(doc.data()));
+            
+            const programFilter = document.getElementById('programFilter').value;
+            const courseFilter = document.getElementById('courseFilter').value;
+            const yearFilter = document.getElementById('yearFilter').value;
+            
+            if (programFilter !== 'all') students = students.filter(s => s.program === programFilter);
+            if (courseFilter !== 'all') students = students.filter(s => s.course === courseFilter);
+            if (yearFilter !== 'all') students = students.filter(s => s.year === yearFilter);
+            
+            doc.setFontSize(18);
+            doc.text('CBU Student Roster', 14, 20);
+            doc.setFontSize(10);
+            doc.text(`School: ${userData.school}`, 14, 30);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 37);
+            
+            let y = 50;
+            students.forEach((s, idx) => {
+                if (y > 270) { doc.addPage(); y = 20; }
+                doc.text(`${idx+1}. ${s.name} | ${s.sin} | ${s.program} | ${s.course} | ${s.year}`, 14, y);
+                y += 7;
+            });
+            doc.save(`CBU_Roster_${userData.school.replace(/\s/g, '_')}.pdf`);
+        }
+
+        async function exportReport() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const programFilter = document.getElementById('reportProgramFilter').value;
+            const courseFilter = document.getElementById('reportCourseFilter').value;
+            const period = document.getElementById('reportPeriod').value;
+            
+            const today = new Date();
+            let startDate = new Date();
+            if (period === 'day') startDate = today;
+            else if (period === 'week') startDate.setDate(today.getDate() - 7);
+            else startDate.setDate(today.getDate() - 30);
+            
+            const attendanceSnapshot = await db.collection('attendance').get();
+            let attendance = [];
+            attendanceSnapshot.forEach(doc => {
+                const a = doc.data();
+                const recordDate = new Date(a.date);
+                if (recordDate >= startDate && a.studentSchool === userData.school) attendance.push(a);
+            });
+            
+            if (programFilter !== 'all') attendance = attendance.filter(a => a.studentProgram === programFilter);
+            if (courseFilter !== 'all') attendance = attendance.filter(a => a.studentCourse === courseFilter);
+            
+            doc.setFontSize(16);
+            doc.text(`Attendance Report (${period.toUpperCase()})`, 14, 20);
+            doc.setFontSize(10);
+            doc.text(`School: ${userData.school}`, 14, 30);
+            
+            let y = 50;
+            attendance.forEach(att => {
+                if (y > 280) { doc.addPage(); y = 20; }
+                doc.text(`${att.date} | ${att.studentName} | ${att.studentProgram} | ${att.type} | ${att.status}`, 14, y);
+                y += 6;
+            });
+            doc.save(`CBU_Attendance_${period}.pdf`);
+        }
+
+        // Create session with location
+        async function createSession(e) {
+            e.preventDefault();
+            
+            const location = await getCurrentLocation();
+            if (!location && !testMode) {
+                alert('❌ Cannot create session: Unable to get your current location. Please enable GPS or use Test Mode.');
+                return;
+            }
+            
+            const program = document.getElementById('sessionProgram').value;
+            const course = document.getElementById('sessionCourse').value;
+            const locationName = document.getElementById('sessionLocationName').value;
+            const date = document.getElementById('sessionDate').value;
+            const startTime = document.getElementById('sessionStart').value;
+            const endTime = document.getElementById('sessionEnd').value;
+            
+            if (!program || !course || !locationName || !date || !startTime || !endTime) {
+                alert('Please fill in all fields.');
+                return;
+            }
+            
+            const sessionData = {
+                id: Date.now().toString(),
+                lecturerEmail: userData.email,
+                lecturerName: userData.name,
+                school: userData.school,
+                program: program,
+                course: course,
+                locationName: locationName,
+                lecturerLat: location ? location.lat : null,
+                lecturerLng: location ? location.lng : null,
+                date: date,
+                startTime: startTime,
+                endTime: endTime,
+                createdAt: new Date().toISOString()
+            };
+            
+            await db.collection('sessions').add(sessionData);
+            alert(`✅ Session created for ${course} at ${locationName}!`);
+            document.getElementById('createSessionForm').reset();
+            document.getElementById('sessionCourse').disabled = true;
+            renderSessions();
+        }
+
+        async function init() {
+            const userUid = sessionStorage.getItem('userUid');
+            if (!userUid) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const userDoc = await db.collection('users').doc(userUid).get();
+            if (!userDoc.exists || userDoc.data().role !== 'lecturer') {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            userData = userDoc.data();
+            
+            document.getElementById('lecturerName').innerText = userData.name;
+            document.getElementById('lecturerSchool').innerText = userData.school || 'Not Specified';
+            document.getElementById('lecturerCourse').innerText = userData.course || 'General';
+            document.getElementById('sessionSchool').value = userData.school || '';
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('sessionDate').min = today;
+            
+            populatePrograms();
+            
+            document.getElementById('sessionProgram').addEventListener('change', updateCourses);
+            document.getElementById('testModeToggle').addEventListener('change', async (e) => {
+                testMode = e.target.checked;
+                await getCurrentLocation();
+            });
+            document.getElementById('logoutBtn').onclick = async () => {
+                await auth.signOut();
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+            };
+            document.getElementById('refreshLocationBtn').onclick = getCurrentLocation;
+            document.getElementById('exportRosterBtn').onclick = exportRoster;
+            document.getElementById('exportReportBtn').onclick = exportReport;
+            document.getElementById('refreshRosterBtn').onclick = renderRoster;
+            document.getElementById('programFilter').addEventListener('change', renderRoster);
+            document.getElementById('courseFilter').addEventListener('change', renderRoster);
+            document.getElementById('yearFilter').addEventListener('change', renderRoster);
+            document.getElementById('createSessionForm').addEventListener('submit', createSession);
+            
+            await getCurrentLocation();
+            await populateFilters();
+            await renderSessions();
+            await renderRoster();
+        }
+        
+        init();
+    </script>
+</body>
+</html>

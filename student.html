@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBU Digital Register - Student Dashboard</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: #0a0f1e;
+            min-height: 100vh;
+            padding: 24px 16px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: #141b2b;
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid #253044;
+            margin-bottom: 24px;
+        }
+        h1 {
+            color: #f0f3fa;
+            font-size: 1.8rem;
+        }
+        h2 {
+            color: #cbd5ff;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #2d6aef;
+            padding-left: 14px;
+        }
+        h3 {
+            color: #f0f3fa;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .status-on {
+            background: #1f6e43;
+            color: #c0f0d0;
+        }
+        .status-off {
+            background: #8b3a3a;
+            color: #ffcfcf;
+        }
+        .status-warning {
+            background: #c4a137;
+            color: #1e1a0a;
+        }
+        .test-mode-toggle {
+            background: #1e2a3e;
+            border-radius: 40px;
+            padding: 6px 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: white;
+        }
+        .test-mode-toggle input {
+            width: 18px;
+            margin: 0;
+        }
+        button {
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-size: 0.9rem;
+        }
+        .btn-primary {
+            background: #2d6aef;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1b55cf;
+        }
+        .btn-primary:disabled {
+            background: #4a5a7a;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #a03232;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #b14242;
+        }
+        .btn-secondary {
+            background: #1e2a44;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #2a3a5a;
+        }
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 0.85rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid #253044;
+            color: #e2e8f0;
+        }
+        th {
+            color: #94a3d8;
+        }
+        .session-item {
+            background: #0f1622;
+            padding: 12px;
+            border-radius: 16px;
+            margin-bottom: 10px;
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .current-location {
+            background: #0c1120;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 8px;
+            font-family: monospace;
+        }
+        .distance-badge {
+            background: #2d6aef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+            display: inline-block;
+        }
+        @media (max-width: 600px) {
+            .flex-between {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .button-group {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="flex-between">
+                <h1>📖 Student Portal</h1>
+                <div class="test-mode-toggle">
+                    <span>📍 Test Mode (simulate location)</span>
+                    <input type="checkbox" id="testModeToggle">
+                </div>
+                <button id="logoutBtn" class="btn-danger btn-sm">Logout</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="flex-between">
+                <h3>👤 Student Information</h3>
+                <span id="locationStatus" class="status-badge status-off">📍 Getting location...</span>
+            </div>
+            <p><strong>Name:</strong> <span id="studentName"></span></p>
+            <p><strong>SIN:</strong> <span id="studentSin"></span></p>
+            <p><strong>School:</strong> <span id="studentSchool"></span></p>
+            <p><strong>Program:</strong> <span id="studentProgram"></span></p>
+            <p><strong>Course:</strong> <span id="studentCourse"></span></p>
+            <p><strong>Year:</strong> <span id="studentYear"></span></p>
+            <button id="refreshLocationBtn" class="btn-secondary btn-sm" style="margin-top: 12px;">⟳ Refresh My Location</button>
+            <div id="currentLocationDisplay" class="current-location">No location captured yet</div>
+        </div>
+
+        <div class="card">
+            <h2>📅 Daily Attendance</h2>
+            <p id="dateTimeDisplay" style="margin-bottom: 12px; color: #94a3d8;"></p>
+            <div class="button-group">
+                <button id="markPresentBtn" class="btn-primary">✅ Mark Present</button>
+                <button id="markAbsentBtn" class="btn-danger">❌ Mark Absent</button>
+            </div>
+            <p id="dailyMessage" style="margin-top: 12px; font-size: 0.85rem;"></p>
+        </div>
+
+        <div class="card">
+            <h2>⏳ Active Class Sessions</h2>
+            <div id="activeSessionsList">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h2>📜 Attendance History</h2>
+            <div style="overflow-x: auto;">
+                <table id="historyTable">
+                    <thead>
+                        <tr><th>Date</th><th>Type</th><th>Status</th><th>Course/Session</th><th>Location Verified</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBNpjy5UDXo8affem8rJnzLlqZKgjmDQpM",
+            authDomain: "attendence-2bf1e.firebaseapp.com",
+            projectId: "attendence-2bf1e",
+            storageBucket: "attendence-2bf1e.firebasestorage.app",
+            messagingSenderId: "713605798743",
+            appId: "1:713605798743:web:98040dcc16ae69236ebc12",
+            measurementId: "G-B5WCTL378P"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+        let userData = null;
+        let testMode = false;
+        let currentStudentLocation = null;
+
+        // Distance calculation (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth's radius in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c; // Distance in meters
+        }
+
+        function getTodayStr() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function getCurrentTime() {
+            return new Date().toTimeString().slice(0, 5);
+        }
+
+        // Get student's current location
+        function getCurrentLocation() {
+            return new Promise((resolve) => {
+                if (testMode) {
+                    // Simulated location for test mode
+                    const simulatedLocation = { lat: -12.9770, lng: 28.6520 };
+                    currentStudentLocation = simulatedLocation;
+                    document.getElementById('locationStatus').innerHTML = '<span class="status-badge status-warning">🧪 TEST MODE</span>';
+                    document.getElementById('currentLocationDisplay').innerHTML = `🧪 Test Mode: Simulated at (${simulatedLocation.lat}, ${simulatedLocation.lng})`;
+                    resolve(simulatedLocation);
+                    return;
+                }
+                
+                if (!navigator.geolocation) {
+                    document.getElementById('locationStatus').innerHTML = '<span class="status-badge status-off">❌ GPS Not Supported</span>';
+                    resolve(null);
+                    return;
+                }
+                
+                document.getElementById('locationStatus').innerHTML = '<span class="status-badge status-warning">📍 Getting location...</span>';
+                
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        currentStudentLocation = location;
+                        document.getElementById('locationStatus').innerHTML = '<span class="status-badge status-on">✅ Location Ready</span>';
+                        document.getElementById('currentLocationDisplay').innerHTML = `📍 Your Location: ${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`;
+                        resolve(location);
+                    },
+                    (error) => {
+                        let errorMsg = "Location unavailable";
+                        if (error.code === 1) errorMsg = "Permission denied. Allow location access.";
+                        if (error.code === 2) errorMsg = "Location unavailable. Try again.";
+                        if (error.code === 3) errorMsg = "Location timeout. Check GPS.";
+                        document.getElementById('locationStatus').innerHTML = `<span class="status-badge status-off">❌ ${errorMsg}</span>`;
+                        resolve(null);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000 }
+                );
+            });
+        }
+
+        // Add attendance record
+        async function addAttendance(date, status, type, sessionId = null, courseRef = '', locationVerified = false, distance = null) {
+            const attendanceRef = db.collection('attendance');
+            const existing = await attendanceRef
+                .where('studentEmail', '==', currentUser.email)
+                .where('date', '==', date)
+                .where('type', '==', type)
+                .get();
+            
+            if (!existing.empty) return false;
+            
+            await attendanceRef.add({
+                studentEmail: currentUser.email,
+                studentName: currentUser.name,
+                studentProgram: userData.program,
+                studentCourse: userData.course,
+                studentYear: userData.year,
+                studentSchool: userData.school,
+                date: date,
+                status: status,
+                type: type,
+                sessionId: sessionId,
+                courseRef: courseRef || userData.course,
+                locationVerified: locationVerified,
+                distanceFromLecturer: distance,
+                studentLat: currentStudentLocation?.lat,
+                studentLng: currentStudentLocation?.lng,
+                timestamp: new Date().toISOString()
+            });
+            return true;
+        }
+
+        // Render attendance history
+        async function renderHistory() {
+            const attendanceSnapshot = await db.collection('attendance')
+                .where('studentEmail', '==', currentUser.email)
+                .orderBy('date', 'desc')
+                .get();
+            
+            const tbody = document.querySelector('#historyTable tbody');
+            tbody.innerHTML = '';
+            
+            attendanceSnapshot.forEach(doc => {
+                const rec = doc.data();
+                const row = tbody.insertRow();
+                row.insertCell(0).innerText = rec.date;
+                row.insertCell(1).innerText = rec.type === 'daily' ? 'Daily Register' : 'Session';
+                row.insertCell(2).innerText = rec.status;
+                row.insertCell(3).innerText = rec.courseRef || 'General';
+                row.insertCell(4).innerHTML = rec.locationVerified ? 
+                    '<span class="status-badge status-on">✅ Verified</span>' : 
+                    '<span class="status-badge status-off">❌ Not Verified</span>';
+            });
+        }
+
+        // Render active sessions (with distance checking)
+        async function renderActiveSessions() {
+            // Get sessions that match student's course
+            const sessionsSnapshot = await db.collection('sessions')
+                .where('course', '==', userData.course)
+                .get();
+            
+            const today = getTodayStr();
+            const now = getCurrentTime();
+            
+            const activeSessions = [];
+            sessionsSnapshot.forEach(doc => {
+                const s = doc.data();
+                if (s.date === today && now >= s.startTime && now <= s.endTime &&
+                    s.program === userData.program && s.school === userData.school) {
+                    activeSessions.push({ id: doc.id, ...s });
+                }
+            });
+            
+            const container = document.getElementById('activeSessionsList');
+            
+            if (activeSessions.length === 0) {
+                container.innerHTML = '<p>No active sessions right now for your course.</p>';
+                return;
+            }
+            
+            let html = '';
+            for (const sess of activeSessions) {
+                // Check if already marked
+                const attendanceSnapshot = await db.collection('attendance')
+                    .where('sessionId', '==', sess.id)
+                    .where('studentEmail', '==', currentUser.email)
+                    .get();
+                
+                const alreadyMarked = !attendanceSnapshot.empty;
+                
+                // Calculate distance if lecturer location exists
+                let distance = null;
+                let canMark = false;
+                let distanceMessage = '';
+                
+                if (sess.lecturerLat && sess.lecturerLng && currentStudentLocation) {
+                    distance = calculateDistance(
+                        currentStudentLocation.lat, currentStudentLocation.lng,
+                        sess.lecturerLat, sess.lecturerLng
+                    );
+                    canMark = distance <= 100; // Within 100 meters
+                    distanceMessage = `${Math.round(distance)} meters away`;
+                    if (canMark) {
+                        distanceMessage += ' ✅ You are near the lecturer!';
+                    } else {
+                        distanceMessage += ' ❌ Too far from lecturer';
+                    }
+                } else if (testMode) {
+                    canMark = true;
+                    distanceMessage = '🧪 Test Mode - Location bypassed';
+                } else {
+                    canMark = false;
+                    distanceMessage = '📍 Enable location to verify you are near the lecturer';
+                }
+                
+                html += `<div class="session-item">
+                            <strong>📚 ${sess.course}</strong>
+                            <span class="distance-badge">${distanceMessage}</span><br>
+                            <span>🏛️ ${sess.school} | ${sess.program}</span><br>
+                            <span>📍 ${sess.locationName || sess.location || 'Unknown location'}</span><br>
+                            <small>🕐 ${sess.startTime} - ${sess.endTime}</small><br>`;
+                
+                if (!alreadyMarked) {
+                    if (canMark) {
+                        html += `<button class="btn-primary btn-sm" onclick="markSessionAttendance('${sess.id}', '${sess.course}', ${distance || 0})" style="margin-top: 8px;">
+                                    ✅ Mark Present in Session
+                                </button>`;
+                    } else {
+                        html += `<button class="btn-primary btn-sm" disabled style="margin-top: 8px; opacity: 0.5;">
+                                    ❌ Cannot Mark - ${distanceMessage}
+                                </button>`;
+                    }
+                } else {
+                    html += `<span class="status-badge status-on" style="margin-top: 8px; display: inline-block;">✅ Already Marked</span>`;
+                }
+                html += `</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        // Mark session attendance (global function for onclick)
+        window.markSessionAttendance = async function(sessionId, courseName, distance) {
+            if (!currentStudentLocation && !testMode) {
+                alert('❌ Cannot mark attendance: Unable to get your current location. Please enable GPS or use Test Mode.');
+                return;
+            }
+            
+            // Double-check distance
+            const sessionDoc = await db.collection('sessions').doc(sessionId).get();
+            const session = sessionDoc.data();
+            
+            if (session.lecturerLat && session.lecturerLng && currentStudentLocation && !testMode) {
+                const distanceToLecturer = calculateDistance(
+                    currentStudentLocation.lat, currentStudentLocation.lng,
+                    session.lecturerLat, session.lecturerLng
+                );
+                
+                if (distanceToLecturer > 100) {
+                    alert(`❌ Cannot mark attendance: You are ${Math.round(distanceToLecturer)} meters away from the lecturer. You must be within 100 meters.`);
+                    return;
+                }
+            }
+            
+            const success = await addAttendance(getTodayStr(), 'Present', 'session', sessionId, courseName, true, distance);
+            if (success) {
+                alert(`✅ Marked present for ${courseName} session! Location verified.`);
+                renderActiveSessions();
+                renderHistory();
+            } else {
+                alert('Already marked for this session.');
+            }
+        };
+
+        // Mark daily attendance
+        async function markDaily(status) {
+            if (!currentStudentLocation && !testMode) {
+                alert('❌ Cannot mark attendance: Unable to get your current location. Please enable GPS or use Test Mode.');
+                return;
+            }
+            
+            const today = getTodayStr();
+            const attendanceSnapshot = await db.collection('attendance')
+                .where('studentEmail', '==', currentUser.email)
+                .where('date', '==', today)
+                .where('type', '==', 'daily')
+                .get();
+            
+            if (!attendanceSnapshot.empty) {
+                document.getElementById('dailyMessage').innerHTML = '<span style="color: #ffaa44;">⚠️ You have already marked daily attendance today.</span>';
+                return;
+            }
+            
+            // For daily attendance, just check if location is available (no distance check)
+            const locationVerified = currentStudentLocation !== null || testMode;
+            const success = await addAttendance(today, status, 'daily', null, userData.course, locationVerified);
+            
+            if (success) {
+                document.getElementById('dailyMessage').innerHTML = `<span style="color: #8aff8a;">✅ Marked as ${status} for today! Location recorded.</span>`;
+                renderHistory();
+            }
+        }
+
+        async function init() {
+            const userUid = sessionStorage.getItem('userUid');
+            if (!userUid) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            const userDoc = await db.collection('users').doc(userUid).get();
+            if (!userDoc.exists || userDoc.data().role !== 'student') {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            userData = userDoc.data();
+            currentUser = userData;
+            
+            document.getElementById('studentName').innerText = userData.name;
+            document.getElementById('studentSin').innerText = userData.sin || 'N/A';
+            document.getElementById('studentSchool').innerText = userData.school || 'N/A';
+            document.getElementById('studentProgram').innerText = userData.program || 'N/A';
+            document.getElementById('studentCourse').innerText = userData.course || 'N/A';
+            document.getElementById('studentYear').innerText = userData.year || 'N/A';
+            
+            function updateDateTime() {
+                document.getElementById('dateTimeDisplay').innerHTML = `📆 ${getTodayStr()} | 🕐 ${new Date().toLocaleTimeString()}`;
+            }
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            
+            document.getElementById('testModeToggle').addEventListener('change', async (e) => {
+                testMode = e.target.checked;
+                await getCurrentLocation();
+                renderActiveSessions();
+            });
+            
+            document.getElementById('logoutBtn').onclick = async () => {
+                await auth.signOut();
+                sessionStorage.clear();
+                window.location.href = 'login.html';
+            };
+            
+            document.getElementById('refreshLocationBtn').onclick = async () => {
+                await getCurrentLocation();
+                renderActiveSessions();
+            };
+            
+            document.getElementById('markPresentBtn').onclick = () => markDaily('Present');
+            document.getElementById('markAbsentBtn').onclick = () => markDaily('Absent');
+            
+            await getCurrentLocation();
+            await renderActiveSessions();
+            await renderHistory();
+            
+            // Refresh active sessions every 30 seconds
+            setInterval(async () => {
+                if (document.getElementById('activeSessionsList')) {
+                    await renderActiveSessions();
+                }
+            }, 30000);
+        }
+        
+        init();
+    </script>
+</body>
+</html>
